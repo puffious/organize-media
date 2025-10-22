@@ -282,6 +282,9 @@ Analyze the structure and provide your organization suggestions:
     def _parse_tv_show_response(self, response_text: str, show_folder_name: str) -> OrganizationPlan:
         """Parse AI response for TV show organization."""
         try:
+            # Log full response for debugging
+            print(f"Full AI response text: {response_text}")
+
             # Extract JSON from response
             json_match = re.search(r'```json\s*(\{.*?\})\s*```', response_text, re.DOTALL)
             if not json_match:
@@ -289,9 +292,25 @@ Analyze the structure and provide your organization suggestions:
                 json_match = re.search(r'(\{.*\})', response_text, re.DOTALL)
 
             if not json_match:
+                print(f"No JSON found in response: {response_text[:1000]}")
                 raise ValueError("No valid JSON found in AI response")
 
-            data = json.loads(json_match.group(1))
+            json_text = json_match.group(1)
+
+            # Debug output for malformed JSON
+            print(f"Extracted JSON text length: {len(json_text)}")
+            print(f"Raw JSON response (first 500 chars): {json_text[:500]}")
+            print(f"Raw JSON response (last 500 chars): {json_text[-500:]}")
+
+            # Try to fix common JSON issues
+            json_text = self._fix_json_issues(json_text)
+
+            try:
+                data = json.loads(json_text)
+            except json.JSONDecodeError as json_err:
+                print(f"JSON decode error: {json_err}")
+                print(f"Problematic JSON around error: {json_text[max(0, json_err.pos-100):json_err.pos+100]}")
+                raise
 
             # Parse operations into suggestions
             suggestions = []
@@ -322,20 +341,41 @@ Analyze the structure and provide your organization suggestions:
             )
 
         except (json.JSONDecodeError, KeyError) as e:
+            print(f"JSON parsing failed: {str(e)}")
+            print(f"Full response that failed: {response_text}")
             raise ValueError(f"Failed to parse AI response: {str(e)}")
 
     def _parse_movie_response(self, response_text: str, movies_folder_name: str) -> OrganizationPlan:
         """Parse AI response for movie collection organization."""
         try:
+            # Log full response for debugging
+            print(f"Full AI response text: {response_text}")
+
             # Extract JSON from response
             json_match = re.search(r'```json\s*(\{.*?\})\s*```', response_text, re.DOTALL)
             if not json_match:
                 json_match = re.search(r'(\{.*\})', response_text, re.DOTALL)
 
             if not json_match:
+                print(f"No JSON found in response: {response_text[:1000]}")
                 raise ValueError("No valid JSON found in AI response")
 
-            data = json.loads(json_match.group(1))
+            json_text = json_match.group(1)
+
+            # Debug output for malformed JSON
+            print(f"Extracted JSON text length: {len(json_text)}")
+            print(f"Raw JSON response (first 500 chars): {json_text[:500]}")
+            print(f"Raw JSON response (last 500 chars): {json_text[-500:]}")
+
+            # Try to fix common JSON issues
+            json_text = self._fix_json_issues(json_text)
+
+            try:
+                data = json.loads(json_text)
+            except json.JSONDecodeError as json_err:
+                print(f"JSON decode error: {json_err}")
+                print(f"Problematic JSON around error: {json_text[max(0, json_err.pos-100):json_err.pos+100]}")
+                raise
 
             # Parse operations into suggestions
             suggestions = []
@@ -366,7 +406,32 @@ Analyze the structure and provide your organization suggestions:
             )
 
         except (json.JSONDecodeError, KeyError) as e:
+            print(f"JSON parsing failed: {str(e)}")
+            print(f"Full response that failed: {response_text}")
             raise ValueError(f"Failed to parse AI response: {str(e)}")
+
+    def _fix_json_issues(self, json_text: str) -> str:
+        """Fix common JSON formatting issues in AI responses."""
+        # Remove any trailing commas before closing braces/brackets
+        json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
+
+        # Fix unescaped quotes in strings
+        # This is a simple fix - may need more sophisticated handling
+        json_text = re.sub(r'(?<!\\)"(?=[^,}\]]*[,}\]])', r'\\"', json_text)
+
+        # Ensure the JSON is complete by checking for balanced braces
+        open_braces = json_text.count('{')
+        close_braces = json_text.count('}')
+        if open_braces > close_braces:
+            json_text += '}' * (open_braces - close_braces)
+
+        # Ensure arrays are properly closed
+        open_brackets = json_text.count('[')
+        close_brackets = json_text.count(']')
+        if open_brackets > close_brackets:
+            json_text += ']' * (open_brackets - close_brackets)
+
+        return json_text
 
     def validate_suggestions(self, plan: OrganizationPlan, base_path: Path) -> Tuple[List[OrganizationSuggestion], List[str]]:
         """
