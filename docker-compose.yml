@@ -1,0 +1,109 @@
+# AI-Powered Media Library Organizer - Docker Compose Configuration
+# Production-ready deployment with volumes and environment management
+
+version: '3.8'
+
+services:
+  media-organizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-media-organizer:latest
+    container_name: media-organizer
+
+    # Security: Run as non-root user
+    user: "1000:1000"
+
+    # Environment variables
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENV_FILE=/app/config/.env
+
+    # Volume mounts
+    volumes:
+      # Media directories (adjust paths to match your setup)
+      - "${MEDIA_ROOT:-./media}:/media:rw"
+
+      # Configuration directory
+      - "${CONFIG_DIR:-./config}:/app/config:rw"
+
+      # Logs and reports
+      - "${LOGS_DIR:-./logs}:/app/logs:rw"
+
+      # Optional: Mount specific media subdirectories
+      # - "${TV_SHOWS_PATH:-./media/tv}:/media/tv:rw"
+      # - "${MOVIES_PATH:-./media/movies}:/media/movies:rw"
+
+    # Network configuration
+    networks:
+      - media-organizer-network
+
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python3", "/app/src/main.py", "test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Interactive mode for setup (comment out for daemon mode)
+    stdin_open: true
+    tty: true
+
+# Network configuration
+networks:
+  media-organizer-network:
+    driver: bridge
+
+# Named volumes for persistence
+volumes:
+  config-data:
+    driver: local
+  logs-data:
+    driver: local
+
+---
+# Alternative configuration using named volumes
+# Uncomment this section and comment out the main service above if you prefer named volumes
+
+# services:
+#   media-organizer-volumes:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     image: ai-media-organizer:latest
+#     container_name: media-organizer-volumes
+#
+#     user: "1000:1000"
+#
+#     environment:
+#       - PYTHONUNBUFFERED=1
+#       - ENV_FILE=/app/config/.env
+#
+#     volumes:
+#       # Named volumes for configuration and logs
+#       - config-data:/app/config:rw
+#       - logs-data:/app/logs:rw
+#
+#       # Bind mount for media (adjust path)
+#       - "${MEDIA_ROOT:-/path/to/your/media}:/media:rw"
+#
+#     networks:
+#       - media-organizer-network
+#
+#     restart: unless-stopped
+#     stdin_open: true
+#     tty: true
