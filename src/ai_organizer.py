@@ -302,8 +302,7 @@ Analyze the structure and provide your organization suggestions:
             print(f"Raw JSON response (first 500 chars): {json_text[:500]}")
             print(f"Raw JSON response (last 500 chars): {json_text[-500:]}")
 
-            # Try to fix common JSON issues
-            json_text = self._fix_json_issues(json_text)
+
 
             try:
                 data = json.loads(json_text)
@@ -367,8 +366,7 @@ Analyze the structure and provide your organization suggestions:
             print(f"Raw JSON response (first 500 chars): {json_text[:500]}")
             print(f"Raw JSON response (last 500 chars): {json_text[-500:]}")
 
-            # Try to fix common JSON issues
-            json_text = self._fix_json_issues(json_text)
+
 
             try:
                 data = json.loads(json_text)
@@ -410,28 +408,7 @@ Analyze the structure and provide your organization suggestions:
             print(f"Full response that failed: {response_text}")
             raise ValueError(f"Failed to parse AI response: {str(e)}")
 
-    def _fix_json_issues(self, json_text: str) -> str:
-        """Fix common JSON formatting issues in AI responses."""
-        # Remove any trailing commas before closing braces/brackets
-        json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
 
-        # Fix unescaped quotes in strings
-        # This is a simple fix - may need more sophisticated handling
-        json_text = re.sub(r'(?<!\\)"(?=[^,}\]]*[,}\]])', r'\\"', json_text)
-
-        # Ensure the JSON is complete by checking for balanced braces
-        open_braces = json_text.count('{')
-        close_braces = json_text.count('}')
-        if open_braces > close_braces:
-            json_text += '}' * (open_braces - close_braces)
-
-        # Ensure arrays are properly closed
-        open_brackets = json_text.count('[')
-        close_brackets = json_text.count(']')
-        if open_brackets > close_brackets:
-            json_text += ']' * (open_brackets - close_brackets)
-
-        return json_text
 
     def validate_suggestions(self, plan: OrganizationPlan, base_path: Path) -> Tuple[List[OrganizationSuggestion], List[str]]:
         """
